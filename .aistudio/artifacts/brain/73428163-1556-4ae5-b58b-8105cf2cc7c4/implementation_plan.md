@@ -1,16 +1,16 @@
-# Implementation Plan - Global Manual Search Bar
+# Implementation Plan - Offline PWA Support (Service Worker & Manifest)
 
 ## Objective
-Add a fast, responsive global search bar in the `Navbar` that indexes manual sections, troubleshooting solutions, protocol phases, and glossary terms, allowing users to instantly find and navigate to relevant content.
+Implement a robust Service Worker and Web App Manifest to cache static assets and core manual content, ensuring the application is fully functional offline and installable as a Progressive Web App (PWA).
 
 ## Deliverables
-1. **Search Index & Utility (`src/data/searchIndex.ts`):**
-   - Collects searchable items from protocol data, troubleshooting errors, and glossary terms.
-2. **Search Dropdown UI in Navbar (`src/components/Navbar.tsx` or `SearchModal.tsx`):**
-   - Live query input with instant dropdown results grouped by category (Protocolo, Errores, Glosario).
-   - Keyboard navigation and click-to-navigate functionality.
-3. **Tab Switch & Highlight Integration:**
-   - Automatically switches `activeTab` and scrolls/highlights the selected topic when clicked.
+1. **Web App Manifest (`public/manifest.json`):**
+   - Defines app metadata, icons, theme colors, and standalone display mode.
+2. **Service Worker (`public/sw.js`):**
+   - Installs and caches core static assets (`index.html`, bundle scripts, stylesheets).
+   - Implements cache-first / network-fallback strategy for offline resilience.
+3. **Registration Script (`src/main.tsx` or `index.html`):**
+   - Registers the service worker upon window load.
 
 ## Verification
-- Run `compile_applet` and `lint_applet` to ensure zero compilation or type errors.
+- Run `compile_applet` and `lint_applet` to confirm correct syntax and type safety.

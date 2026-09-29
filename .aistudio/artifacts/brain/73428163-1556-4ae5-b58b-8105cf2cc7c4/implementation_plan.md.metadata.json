@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan for a global search bar in the Navbar indexing protocol steps, troubleshooting items, and glossary terms with instant dropdown results.",
-  "updatedAt": "2026-09-29T22:33:34.064021662Z",
+  "summary": "Implementation plan for offline PWA support with a Service Worker and Web App Manifest caching static assets and core manual content.",
+  "updatedAt": "2026-09-29T22:40:17.749600390Z",
   "requestFeedback": true,
   "userFacing": true
 }
