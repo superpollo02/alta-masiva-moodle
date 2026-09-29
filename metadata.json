@@ -1,0 +1,6 @@
+{
+  "name": "Protocolo de Matriculación Masiva en Moodle",
+  "description": "Manual instructivo y protocolo paso a paso para la matriculación masiva de usuarios en Moodle (ESalud Mendoza) a partir de Google Sheets, incluyendo solución de errores y gestión de CSV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
