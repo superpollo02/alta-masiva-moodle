@@ -1,17 +1,16 @@
-import React from 'react';
-import { BookOpen, FileSpreadsheet, AlertTriangle, PlayCircle, ShieldCheck, Film, Sun, Moon, CheckCircle2 } from 'lucide-react';
+import { BookOpen, FileSpreadsheet, AlertTriangle, PlayCircle, ShieldCheck, Film, Sun, Moon, CheckCircle2, FileCheck2 } from 'lucide-react';
 import { SearchBar } from './SearchBar';
 
 interface NavbarProps {
-  activeTab: 'protocol' | 'csv' | 'troubleshooting' | 'simulator' | 'glossary' | 'video';
-  setActiveTab: (tab: 'protocol' | 'csv' | 'troubleshooting' | 'simulator' | 'glossary' | 'video') => void;
+  activeTab: 'protocol' | 'csv' | 'auditor' | 'troubleshooting' | 'simulator' | 'glossary' | 'video';
+  setActiveTab: (tab: 'protocol' | 'csv' | 'auditor' | 'troubleshooting' | 'simulator' | 'glossary' | 'video') => void;
   isDark: boolean;
   toggleTheme: () => void;
   visitedTabs: Set<string>;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, isDark, toggleTheme, visitedTabs }) => {
-  const coreSteps = ['protocol', 'video', 'csv', 'troubleshooting', 'simulator'];
+  const coreSteps = ['protocol', 'video', 'csv', 'auditor', 'troubleshooting', 'simulator'];
   const visitedCount = coreSteps.filter(step => visitedTabs.has(step)).length;
   const progressPercent = Math.min(100, Math.round((visitedCount / coreSteps.length) * 100));
 
@@ -128,7 +127,21 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, isDark,
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Validador & Generador CSV</span>
+            <span>Validador & Generador</span>
+          </button>
+
+          <button
+            role="tab"
+            aria-selected={activeTab === 'auditor'}
+            onClick={() => setActiveTab('auditor')}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              activeTab === 'auditor'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <FileCheck2 className="w-4 h-4" />
+            <span>Auditor de CSV & Lotes</span>
           </button>
 
           <button

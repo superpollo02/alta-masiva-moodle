@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DEFAULT_SAMPLE_CSV } from '../data/protocolData';
-import { CsvRow } from '../types';
+import { CsvRow, MoodleRole } from '../types';
 import { Toast, ToastMessage } from './Toast';
 import { 
   Download, 
@@ -17,10 +17,26 @@ import {
   Clock,
   Trash2,
   Wand2,
-  X
+  X,
+  Layers,
+  Sparkles,
+  UserCheck,
+  BookOpen,
+  Archive,
+  BookmarkPlus,
+  Bookmark,
+  Sliders
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { sanitizeRow } from '../utils/sanitize';
+import JSZip from 'jszip';
+import { 
+  sanitizeRow, 
+  cleanDni, 
+  cleanEmail, 
+  toTitleCase, 
+  splitFullName, 
+  validateEmail 
+} from '../utils/sanitize';
 
 export const CsvGenerator: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -65,20 +81,91 @@ export const CsvGenerator: React.FC = () => {
     return saved ? JSON.parse(saved) : { username: '', firstname: '', lastname: '', email: '' };
   });
 
+  // Single name column splitting option
+  const [isSingleNameColumn, setIsSingleNameColumn] = useState<boolean>(() => {
+    const saved = localStorage.getItem('esalud_is_single_name');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  const [fullNameColumn, setFullNameColumn] = useState<string>(() => {
+    return localStorage.getItem('esalud_fullname_col') || '';
+  });
+
+  // Title case formatting option
+  const [autoTitleCase, setAutoTitleCase] = useState<boolean>(() => {
+    const saved = localStorage.getItem('esalud_auto_title_case');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
   // Default password persisted in localStorage
   const [defaultPassword, setDefaultPassword] = useState<string>(() => {
     return localStorage.getItem('esalud_default_password') || 'Capacitaciones2026*';
   });
 
-  // Course name persisted in localStorage
+  // Course 1 configuration
   const [courseName, setCourseName] = useState<string>(() => {
     return localStorage.getItem('esalud_course_name') || 'REDLAB2026';
   });
 
-  // Group name (Grupo1) persisted in localStorage
+  const [role1, setRole1] = useState<string>(() => {
+    return localStorage.getItem('esalud_role1') || 'student';
+  });
+
   const [groupName, setGroupName] = useState<string>(() => {
     return localStorage.getItem('esalud_group_name') || '';
   });
+
+  // Course 2 (Multicourse) configuration
+  const [enableCourse2, setEnableCourse2] = useState<boolean>(() => {
+    const saved = localStorage.getItem('esalud_enable_course2');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  const [courseName2, setCourseName2] = useState<string>(() => {
+    return localStorage.getItem('esalud_course_name2') || '';
+  });
+
+  const [role2, setRole2] = useState<string>(() => {
+    return localStorage.getItem('esalud_role2') || 'student';
+  });
+
+  const [groupName2, setGroupName2] = useState<string>(() => {
+    return localStorage.getItem('esalud_group_name2') || '';
+  });
+
+  // Course Presets
+  const [presets, setPresets] = useState<Array<{
+    id: string;
+    name: string;
+    courseName: string;
+    role1: string;
+    groupName: string;
+    defaultPassword: string;
+    enableCourse2: boolean;
+    courseName2: string;
+    role2: string;
+    groupName2: string;
+  }>>(() => {
+    const saved = localStorage.getItem('esalud_course_presets');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 'default-redlab',
+        name: 'Red de Laboratorios (REDLAB2026)',
+        courseName: 'REDLAB2026',
+        role1: 'student',
+        groupName: '',
+        defaultPassword: 'Capacitaciones2026*',
+        enableCourse2: false,
+        courseName2: '',
+        role2: 'student',
+        groupName2: ''
+      }
+    ];
+  });
+
+  const [showPresetModal, setShowPresetModal] = useState<boolean>(false);
+  const [newPresetName, setNewPresetName] = useState<string>('');
+  const [batchSize, setBatchSize] = useState<number>(500);
 
   const [csvText, setCsvText] = useState<string>(() => {
     return localStorage.getItem('esalud_csv_text') || DEFAULT_SAMPLE_CSV;
@@ -124,6 +211,18 @@ export const CsvGenerator: React.FC = () => {
   }, [mapping]);
 
   useEffect(() => {
+    localStorage.setItem('esalud_is_single_name', JSON.stringify(isSingleNameColumn));
+  }, [isSingleNameColumn]);
+
+  useEffect(() => {
+    localStorage.setItem('esalud_fullname_col', fullNameColumn);
+  }, [fullNameColumn]);
+
+  useEffect(() => {
+    localStorage.setItem('esalud_auto_title_case', JSON.stringify(autoTitleCase));
+  }, [autoTitleCase]);
+
+  useEffect(() => {
     localStorage.setItem('esalud_default_password', defaultPassword);
   }, [defaultPassword]);
 
@@ -132,8 +231,32 @@ export const CsvGenerator: React.FC = () => {
   }, [courseName]);
 
   useEffect(() => {
+    localStorage.setItem('esalud_role1', role1);
+  }, [role1]);
+
+  useEffect(() => {
     localStorage.setItem('esalud_group_name', groupName);
   }, [groupName]);
+
+  useEffect(() => {
+    localStorage.setItem('esalud_enable_course2', JSON.stringify(enableCourse2));
+  }, [enableCourse2]);
+
+  useEffect(() => {
+    localStorage.setItem('esalud_course_name2', courseName2);
+  }, [courseName2]);
+
+  useEffect(() => {
+    localStorage.setItem('esalud_role2', role2);
+  }, [role2]);
+
+  useEffect(() => {
+    localStorage.setItem('esalud_group_name2', groupName2);
+  }, [groupName2]);
+
+  useEffect(() => {
+    localStorage.setItem('esalud_course_presets', JSON.stringify(presets));
+  }, [presets]);
 
   useEffect(() => {
     localStorage.setItem('esalud_csv_text', csvText);
@@ -222,6 +345,7 @@ export const CsvGenerator: React.FC = () => {
     let bestUsername = '';
     let bestFirstname = '';
     let bestLastname = '';
+    let bestFullName = '';
     let bestEmail = '';
 
     let foundByContent = false;
@@ -229,8 +353,8 @@ export const CsvGenerator: React.FC = () => {
       let matchCount = 0;
       const sampleCheckLimit = Math.min(rows.length, 10);
       for (let i = 0; i < sampleCheckLimit; i++) {
-        const val = String(rows[i][h] || '').trim();
-        if (/^\d{8}$/.test(val) || /^\d{7,8}$/.test(val)) {
+        const val = cleanDni(rows[i][h]);
+        if (/^\d{7,8}$/.test(val)) {
           matchCount++;
         }
       }
@@ -262,7 +386,10 @@ export const CsvGenerator: React.FC = () => {
 
     for (const h of headers) {
       const lower = h.toLowerCase();
-      if (!bestFirstname && (lower.includes('nombre') || lower.includes('firstname') || lower === 'name')) {
+      if (!bestFullName && (lower.includes('nombre y apellido') || lower.includes('apellido y nombre') || lower.includes('apenom') || lower.includes('nombre completo') || lower === 'agente' || lower === 'alumno' || lower === 'participante')) {
+        bestFullName = h;
+      }
+      if (!bestFirstname && (lower.includes('nombre') || lower.includes('firstname') || lower === 'name') && !lower.includes('apellido')) {
         bestFirstname = h;
       }
       if (!bestLastname && (lower.includes('apellido') || lower.includes('lastname') || lower === 'surname')) {
@@ -278,6 +405,13 @@ export const CsvGenerator: React.FC = () => {
     if (!bestLastname && headers.length > 2) bestLastname = headers[2];
     if (!bestEmail && headers.length > 3) bestEmail = headers[3];
 
+    if (bestFullName && (!bestFirstname || !bestLastname)) {
+      setIsSingleNameColumn(true);
+      setFullNameColumn(bestFullName);
+    } else {
+      if (bestFullName) setFullNameColumn(bestFullName);
+    }
+
     setMapping({
       username: bestUsername,
       firstname: bestFirstname,
@@ -287,22 +421,16 @@ export const CsvGenerator: React.FC = () => {
   };
 
   const sanitizeUsername = (val: string): string => {
-    if (!val) return '';
-    return String(val)
-      .toLowerCase()
-      .replace(/[.\-\s]/g, '')
-      .trim();
+    return cleanDni(val);
   };
 
   const isValidDni = (val: string): boolean => {
-    const cleaned = String(val || '').trim().replace(/[.\-\s]/g, '');
-    return /^\d{8}$/.test(cleaned);
+    const cleaned = cleanDni(val);
+    return /^\d{7,8}$/.test(cleaned);
   };
 
   const isValidEmail = (email: string): boolean => {
-    if (!email) return false;
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
+    return validateEmail(email);
   };
 
   const fixEmailTypo = (email: string): { corrected: string; wasFixed: boolean } => {
@@ -410,48 +538,27 @@ export const CsvGenerator: React.FC = () => {
     addToast(`Se exportaron ${failedLines.length - 1} registros con errores para corrección.`, 'success');
   };
 
-  const fixEncodingAndAccents = (str: string): string => {
-    if (!str) return '';
-    let cleaned = String(str)
-      .replace(/([aeiouáéíóú])['’]([aeiou])/gi, (match, v1, v2) => {
-        const accents: Record<string, string> = {
-          'a': 'á', 'e': 'é', 'i': 'í', 'o': 'ó', 'u': 'ú'
-        };
-        return v1.toLowerCase() + (accents[v2.toLowerCase()] || v2);
-      })
-      .replace(/anal['’]ia/gi, 'Analía')
-      .replace(/anal['’]a/gi, 'Analía')
-      .replace(/mar['’]ia/gi, 'María')
-      .replace(/n['’]estor/gi, 'Néstor')
-      .replace(/angel['’]ica/gi, 'Angélica')
-      .replace(/m[oó]['’]nica/gi, 'Mónica');
-
-    try {
-      cleaned = cleaned.normalize('NFC');
-    } catch (e) {
-      // ignore
+  // Generate CSV with strict required fields validation & multicourse support
+  const handleGenerateCsv = () => {
+    if (!mapping.username) {
+      addToast('Error: Debe seleccionar la columna para DNI / Username.', 'error');
+      return;
     }
 
-    return cleaned;
-  };
+    if (isSingleNameColumn) {
+      if (!fullNameColumn) {
+        addToast('Error: Debe seleccionar la columna que contiene el Nombre y Apellido.', 'error');
+        return;
+      }
+    } else {
+      if (!mapping.firstname || !mapping.lastname) {
+        addToast('Error: Las columnas de Nombre y Apellido son obligatorias.', 'error');
+        return;
+      }
+    }
 
-  const toTitleCase = (str: string): string => {
-    if (!str) return '';
-    const fixed = fixEncodingAndAccents(str);
-    return fixed
-      .toLowerCase()
-      .split(' ')
-      .map(word => {
-        if (!word) return '';
-        return word.charAt(0).toUpperCase() + word.slice(1);
-      })
-      .join(' ');
-  };
-
-  // Generate CSV with strict required fields validation & Toast notifications
-  const handleGenerateCsv = () => {
-    if (!mapping.username || !mapping.firstname || !mapping.lastname || !mapping.email) {
-      addToast('Error: Todos los campos del mapeo (DNI, Nombre, Apellido y Correo) son obligatorios.', 'error');
+    if (!mapping.email) {
+      addToast('Error: La columna de Correo Electrónico es obligatoria.', 'error');
       return;
     }
 
@@ -461,37 +568,79 @@ export const CsvGenerator: React.FC = () => {
     }
 
     if (!courseName.trim()) {
-      addToast('Error: El nombre del curso es obligatorio.', 'error');
+      addToast('Error: El nombre del curso principal (Course 1) es obligatorio.', 'error');
       return;
     }
 
-    const headerLine = groupName.trim() 
-      ? 'username;password;firstname;lastname;email;course1;group1'
-      : 'username;password;firstname;lastname;email;course1';
-    
-    const lines: string[] = [headerLine];
+    if (enableCourse2 && !courseName2.trim()) {
+      addToast('Error: Ha habilitado el 2do Curso pero no ha ingresado su nombre corto.', 'error');
+      return;
+    }
+
+    // Build header columns dynamically
+    const headerCols = ['username', 'password', 'firstname', 'lastname', 'email', 'course1'];
+    if (role1.trim()) headerCols.push('role1');
+    if (groupName.trim()) headerCols.push('group1');
+
+    if (enableCourse2 && courseName2.trim()) {
+      headerCols.push('course2');
+      if (role2.trim()) headerCols.push('role2');
+      if (groupName2.trim()) headerCols.push('group2');
+    }
+
+    const lines: string[] = [headerCols.join(';')];
 
     excelRows.forEach((r) => {
-      let rawUser = String(r[mapping.username] || '').trim();
-      let firstname = toTitleCase(String(r[mapping.firstname] || '').trim());
-      let lastname = toTitleCase(String(r[mapping.lastname] || '').trim());
-      let email = String(r[mapping.email] || '').trim().toLowerCase();
+      let username = cleanDni(r[mapping.username]);
+      let firstname = '';
+      let lastname = '';
 
-      let username = sanitizeUsername(rawUser);
+      if (isSingleNameColumn) {
+        const rawFullName = String(r[fullNameColumn] || '').trim();
+        const split = splitFullName(rawFullName);
+        firstname = split.firstname;
+        lastname = split.lastname;
+      } else {
+        firstname = String(r[mapping.firstname] || '').trim();
+        lastname = String(r[mapping.lastname] || '').trim();
+      }
+
+      if (autoTitleCase) {
+        firstname = toTitleCase(firstname);
+        lastname = toTitleCase(lastname);
+      }
+
+      let email = cleanEmail(r[mapping.email]);
 
       if (!username && firstname && lastname) {
-        username = sanitizeUsername(`${firstname}${lastname}`);
+        username = cleanDni(`${firstname}${lastname}`);
       }
       if (!username) return;
 
       const password = defaultPassword.trim();
       const course = courseName.trim();
-      const group = groupName.trim();
+      const currentRole1 = role1.trim();
+      const currentGroup1 = groupName.trim();
 
-      const escapedLine = group 
-        ? `"${username}";"${password}";"${firstname}";"${lastname}";"${email}";"${course}";"${group}"`
-        : `"${username}";"${password}";"${firstname}";"${lastname}";"${email}";"${course}"`;
+      const rowValues: string[] = [
+        username,
+        password,
+        firstname,
+        lastname,
+        email,
+        course
+      ];
 
+      if (currentRole1) rowValues.push(currentRole1);
+      if (currentGroup1) rowValues.push(currentGroup1);
+
+      if (enableCourse2 && courseName2.trim()) {
+        rowValues.push(courseName2.trim());
+        if (role2.trim()) rowValues.push(role2.trim());
+        if (groupName2.trim()) rowValues.push(groupName2.trim());
+      }
+
+      const escapedLine = rowValues.map(val => `"${val}"`).join(';');
       lines.push(escapedLine);
     });
 
@@ -515,10 +664,14 @@ export const CsvGenerator: React.FC = () => {
   // Parse CSV text for validation and preview in Step 3
   const parseCsvText = (text: string) => {
     const lines = text.trim().split('\n').filter(Boolean);
-    if (lines.length <= 1) return { rows: [], errors: [], typoCount: 0 };
+    if (lines.length <= 1) return { rows: [], errors: [], typoCount: 0, headers: [] };
 
     const headers = lines[0].split(';').map(h => h.replace(/^"|"$/g, '').trim());
-    const hasGroup = headers.includes('group1');
+    const role1Idx = headers.indexOf('role1');
+    const group1Idx = headers.indexOf('group1');
+    const course2Idx = headers.indexOf('course2');
+    const role2Idx = headers.indexOf('role2');
+    const group2Idx = headers.indexOf('group2');
 
     const rows: CsvRow[] = [];
     const errors: string[] = [];
@@ -534,10 +687,14 @@ export const CsvGenerator: React.FC = () => {
       const lastname = rawValues[3] || '';
       const email = rawValues[4] || '';
       const course1 = rawValues[5] || '';
-      const group1 = hasGroup ? rawValues[6] || '' : '';
+      const role1Val = role1Idx !== -1 ? rawValues[role1Idx] : undefined;
+      const group1Val = group1Idx !== -1 ? rawValues[group1Idx] : undefined;
+      const course2Val = course2Idx !== -1 ? rawValues[course2Idx] : undefined;
+      const role2Val = role2Idx !== -1 ? rawValues[role2Idx] : undefined;
+      const group2Val = group2Idx !== -1 ? rawValues[group2Idx] : undefined;
 
       if (!username || !isValidDni(username)) {
-        errors.push(`Línea ${i}: DNI (Username) no válido (debe tener exactamente 8 dígitos numéricos: "${username}").`);
+        errors.push(`Línea ${i}: DNI (Username) no válido (debe tener 7 u 8 dígitos numéricos: "${username}").`);
       }
 
       if (!email || !isValidEmail(email)) {
@@ -569,11 +726,15 @@ export const CsvGenerator: React.FC = () => {
         lastname,
         email,
         course1,
-        group1
+        role1: role1Val,
+        group1: group1Val,
+        course2: course2Val,
+        role2: role2Val,
+        group2: group2Val
       });
     }
 
-    return { rows, errors, typoCount };
+    return { rows, errors, typoCount, headers };
   };
 
   const parsedResult = parseCsvText(csvText);
@@ -588,7 +749,84 @@ export const CsvGenerator: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    addToast('Archivo CSV descargado correctamente.', 'success');
+    addToast('Archivo CSV descargado correctamente con codificación UTF-8 BOM.', 'success');
+  };
+
+  const handleDownloadBatchesZip = async () => {
+    const lines = csvText.trim().split('\n');
+    if (lines.length <= 1) {
+      addToast('No hay registros suficientes para segmentar en lotes.', 'warning');
+      return;
+    }
+
+    const zip = new JSZip();
+    const BOM = '\uFEFF';
+    const header = lines[0];
+    const dataLines = lines.slice(1);
+
+    const totalBatches = Math.ceil(dataLines.length / batchSize);
+
+    for (let b = 0; b < totalBatches; b++) {
+      const chunk = dataLines.slice(b * batchSize, (b + 1) * batchSize);
+      const batchCsv = BOM + [header, ...chunk].join('\n');
+      const batchFileName = `lote_${b + 1}_de_${totalBatches}_(${chunk.length}_alumnos).csv`;
+      zip.file(batchFileName, batchCsv);
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `matriculacion_lotes_${totalBatches}_archivos.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addToast(`Se descargó archivo ZIP con ${totalBatches} lotes numerados (${batchSize} alumnos/lote).`, 'success');
+  };
+
+  const handleSavePreset = () => {
+    if (!newPresetName.trim()) {
+      addToast('Ingrese un nombre representativo para la plantilla de curso.', 'error');
+      return;
+    }
+
+    const newPreset = {
+      id: Date.now().toString(),
+      name: newPresetName.trim(),
+      courseName: courseName.trim(),
+      role1,
+      groupName: groupName.trim(),
+      defaultPassword: defaultPassword.trim(),
+      enableCourse2,
+      courseName2: courseName2.trim(),
+      role2,
+      groupName2: groupName2.trim()
+    };
+
+    const updated = [...presets.filter(p => p.name.toLowerCase() !== newPreset.name.toLowerCase()), newPreset];
+    setPresets(updated);
+    setNewPresetName('');
+    setShowPresetModal(false);
+    addToast(`Plantilla "${newPreset.name}" guardada con éxito.`, 'success');
+  };
+
+  const handleLoadPreset = (preset: typeof presets[0]) => {
+    setCourseName(preset.courseName);
+    setRole1(preset.role1);
+    setGroupName(preset.groupName);
+    setDefaultPassword(preset.defaultPassword);
+    setEnableCourse2(preset.enableCourse2);
+    setCourseName2(preset.courseName2);
+    setRole2(preset.role2);
+    setGroupName2(preset.groupName2);
+    addToast(`Plantilla "${preset.name}" aplicada.`, 'info');
+  };
+
+  const handleDeletePreset = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = presets.filter(p => p.id !== id);
+    setPresets(updated);
+    addToast('Plantilla eliminada.', 'info');
   };
 
   const handleResetAll = () => {
@@ -596,12 +834,31 @@ export const CsvGenerator: React.FC = () => {
     localStorage.removeItem('esalud_excel_headers');
     localStorage.removeItem('esalud_excel_rows');
     localStorage.removeItem('esalud_mapping');
+    localStorage.removeItem('esalud_is_single_name');
+    localStorage.removeItem('esalud_fullname_col');
+    localStorage.removeItem('esalud_auto_title_case');
+    localStorage.removeItem('esalud_course_name');
+    localStorage.removeItem('esalud_role1');
+    localStorage.removeItem('esalud_group_name');
+    localStorage.removeItem('esalud_enable_course2');
+    localStorage.removeItem('esalud_course_name2');
+    localStorage.removeItem('esalud_role2');
+    localStorage.removeItem('esalud_group_name2');
     localStorage.removeItem('esalud_csv_text');
     localStorage.removeItem('esalud_file_name');
+
     setStep(1);
     setExcelHeaders([]);
     setExcelRows([]);
     setMapping({ username: '', firstname: '', lastname: '', email: '' });
+    setIsSingleNameColumn(false);
+    setFullNameColumn('');
+    setAutoTitleCase(true);
+    setRole1('student');
+    setEnableCourse2(false);
+    setCourseName2('');
+    setRole2('student');
+    setGroupName2('');
     setCsvText(DEFAULT_SAMPLE_CSV);
     addToast('Se ha reiniciado la sesión correctamente.', 'info');
   };
@@ -695,7 +952,7 @@ export const CsvGenerator: React.FC = () => {
         </div>
       )}
 
-      {/* STEP 2: CONFIGURAR ASOCIACIÓN (MAPEO INTELIGENTE) */}
+      {/* STEP 2: CONFIGURAR ASOCIACIÓN (MAPEO INTELIGENTE & MULTICURSO) */}
       {step === 2 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Mapping Controls */}
@@ -703,7 +960,7 @@ export const CsvGenerator: React.FC = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                 <Settings2 className="w-5 h-5 text-blue-600" />
-                <span>Mapeo Inteligente</span>
+                <span>Configuración de Mapeo</span>
               </h3>
               <span className="text-xs bg-emerald-500/10 text-emerald-600 font-semibold px-2 py-0.5 rounded-full">
                 {excelRows.length} regs
@@ -713,6 +970,7 @@ export const CsvGenerator: React.FC = () => {
             <p className="text-xs text-slate-500 font-mono">Archivo: {fileName}</p>
 
             <div className="space-y-4 text-sm">
+              {/* DNI Column */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   DNI / Username (Requerido) *
@@ -727,41 +985,114 @@ export const CsvGenerator: React.FC = () => {
                     <option key={i} value={h}>{h}</option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-500 mt-0.5">Debe tener 8 dígitos numéricos.</p>
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center space-x-1">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Se limpian puntos, guiones y prefijos automáticamente.</span>
+                </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                  Nombre (Requerido) *
+              {/* Name Structure Selection */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Estructura de Nombres en el Excel
                 </label>
-                <select
-                  value={mapping.firstname}
-                  onChange={e => setMapping({ ...mapping, firstname: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                >
-                  <option value="">Seleccione columna Nombre</option>
-                  {excelHeaders.map((h, i) => (
-                    <option key={i} value={h}>{h}</option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setIsSingleNameColumn(false)}
+                    className={`py-2 px-2.5 rounded-lg border font-medium transition-all ${
+                      !isSingleNameColumn
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Columnas Separadas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSingleNameColumn(true)}
+                    className={`py-2 px-2.5 rounded-lg border font-medium transition-all ${
+                      isSingleNameColumn
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Columna Única (Juntos)
+                  </button>
+                </div>
+
+                {!isSingleNameColumn ? (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        Columna Nombre *
+                      </label>
+                      <select
+                        value={mapping.firstname}
+                        onChange={e => setMapping({ ...mapping, firstname: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      >
+                        <option value="">Seleccione columna Nombre</option>
+                        {excelHeaders.map((h, i) => (
+                          <option key={i} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        Columna Apellido *
+                      </label>
+                      <select
+                        value={mapping.lastname}
+                        onChange={e => setMapping({ ...mapping, lastname: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                      >
+                        <option value="">Seleccione columna Apellido</option>
+                        {excelHeaders.map((h, i) => (
+                          <option key={i} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 pt-1">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Columna de Nombre Completo *
+                    </label>
+                    <select
+                      value={fullNameColumn}
+                      onChange={e => setFullNameColumn(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    >
+                      <option value="">Seleccione columna con Nombre Completo</option>
+                      {excelHeaders.map((h, i) => (
+                        <option key={i} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-blue-600 dark:text-blue-400">
+                      Soporta formatos tipo "PÉREZ, JUAN" y "JUAN PÉREZ" separándolos automáticamente.
+                    </p>
+                  </div>
+                )}
+
+                {/* Title Case Checkbox */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoTitleCase}
+                      onChange={e => setAutoTitleCase(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800"
+                    />
+                    <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                      Normalizar a Formato Título ("Juan Pérez" en vez de "JUAN PEREZ")
+                    </span>
+                  </label>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                  Apellido (Requerido) *
-                </label>
-                <select
-                  value={mapping.lastname}
-                  onChange={e => setMapping({ ...mapping, lastname: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                >
-                  <option value="">Seleccione columna Apellido</option>
-                  {excelHeaders.map((h, i) => (
-                    <option key={i} value={h}>{h}</option>
-                  ))}
-                </select>
-              </div>
-
+              {/* Email Column */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Correo Electrónico (Requerido) *
@@ -776,51 +1107,139 @@ export const CsvGenerator: React.FC = () => {
                     <option key={i} value={h}>{h}</option>
                   ))}
                 </select>
-                <p className="text-[11px] text-red-500 mt-0.5">Obligatorio: No puede faltar.</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Se normaliza a minúsculas y se corrigen dominios comunes.</p>
               </div>
 
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Contraseña Predeterminada *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={defaultPassword}
-                    onChange={e => setDefaultPassword(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-0.5">Obligatorio (Guardado en navegador).</p>
+              {/* Password */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                  Contraseña Predeterminada *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={defaultPassword}
+                  onChange={e => setDefaultPassword(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                />
+                <p className="text-[11px] text-slate-500 mt-0.5">Debe cumplir políticas Moodle (Mayús, minús, número, símbolo).</p>
+              </div>
+
+              {/* Course 1 Configuration */}
+              <div className="p-3.5 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-900/50 space-y-3">
+                <div className="flex items-center space-x-2 text-xs font-bold text-blue-900 dark:text-blue-300">
+                  <BookOpen className="w-4 h-4 text-blue-600" />
+                  <span>Curso Principal (Course 1) *</span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Nombre del curso *
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Nombre Corto del Curso (ID Moodle) *
                   </label>
                   <input
                     type="text"
                     required
+                    placeholder="Ej: REDLAB2026"
                     value={courseName}
                     onChange={e => setCourseName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
                   />
-                  <p className="text-[11px] text-slate-500 mt-0.5">Obligatorio (Course1 en Moodle).</p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Grupo1 (Opcional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: ComisionA_2026"
-                    value={groupName}
-                    onChange={e => setGroupName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-0.5">Nombre del grupo para acción masiva.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Rol (Role 1)
+                    </label>
+                    <select
+                      value={role1}
+                      onChange={e => setRole1(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
+                    >
+                      <option value="student">Estudiante</option>
+                      <option value="editingteacher">Profesor (editor)</option>
+                      <option value="teacher">Profesor (sin edición)</option>
+                      <option value="coursecreator">Creador de curso</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Grupo (Group 1)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: ComisionA"
+                      value={groupName}
+                      onChange={e => setGroupName(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
+                    />
+                  </div>
                 </div>
+              </div>
+
+              {/* Course 2 (Multicourse) Toggle */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableCourse2}
+                      onChange={e => setEnableCourse2(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800"
+                    />
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center space-x-1.5">
+                      <Layers className="w-3.5 h-3.5 text-purple-500" />
+                      <span>Inscribir en 2do Curso Simultáneo</span>
+                    </span>
+                  </label>
+                </div>
+
+                {enableCourse2 && (
+                  <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Nombre Corto del 2do Curso (Course 2) *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej: INDUCCION2026"
+                        value={courseName2}
+                        onChange={e => setCourseName2(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          Rol (Role 2)
+                        </label>
+                        <select
+                          value={role2}
+                          onChange={e => setRole2(e.target.value)}
+                          className="w-full px-2.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
+                        >
+                          <option value="student">Estudiante</option>
+                          <option value="editingteacher">Profesor (editor)</option>
+                          <option value="teacher">Profesor (sin edición)</option>
+                          <option value="coursecreator">Creador de curso</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          Grupo (Group 2)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: GrupoB"
+                          value={groupName2}
+                          onChange={e => setGroupName2(e.target.value)}
+                          className="w-full px-2.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 flex space-x-3">
@@ -1053,8 +1472,12 @@ export const CsvGenerator: React.FC = () => {
                         <th className="p-2 font-semibold">Nombre</th>
                         <th className="p-2 font-semibold">Apellido</th>
                         <th className="p-2 font-semibold">Email</th>
-                        <th className="p-2 font-semibold">Course1</th>
-                        {groupName && <th className="p-2 font-semibold">Group1</th>}
+                        <th className="p-2 font-semibold">Course 1</th>
+                        {parsedResult.headers.includes('role1') && <th className="p-2 font-semibold">Role 1</th>}
+                        {parsedResult.headers.includes('group1') && <th className="p-2 font-semibold">Group 1</th>}
+                        {parsedResult.headers.includes('course2') && <th className="p-2 font-semibold">Course 2</th>}
+                        {parsedResult.headers.includes('role2') && <th className="p-2 font-semibold">Role 2</th>}
+                        {parsedResult.headers.includes('group2') && <th className="p-2 font-semibold">Group 2</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1069,7 +1492,7 @@ export const CsvGenerator: React.FC = () => {
                                   {row.username}
                                 </span>
                                 {!isValidDni(row.username) && (
-                                  <span title="DNI no válido: Debe ser numérico y tener exactamente 8 dígitos" className="inline-flex items-center text-amber-500 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900">
+                                  <span title="DNI no válido: Debe ser numérico y tener 7 u 8 dígitos" className="inline-flex items-center text-amber-500 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-900">
                                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                                     <span className="text-[10px] ml-1 font-sans">DNI Inválido</span>
                                   </span>
@@ -1094,8 +1517,22 @@ export const CsvGenerator: React.FC = () => {
                                 </span>
                               )}
                             </td>
-                            <td className="py-2.5 px-2 font-mono text-emerald-600 dark:text-emerald-400">{row.course1}</td>
-                            {groupName && <td className="py-2.5 px-2 font-mono text-purple-600 dark:text-purple-400">{row.group1}</td>}
+                            <td className="py-2.5 px-2 font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{row.course1}</td>
+                            {parsedResult.headers.includes('role1') && (
+                              <td className="py-2.5 px-2 font-mono text-blue-600 dark:text-blue-400">{row.role1 || '-'}</td>
+                            )}
+                            {parsedResult.headers.includes('group1') && (
+                              <td className="py-2.5 px-2 font-mono text-purple-600 dark:text-purple-400">{row.group1 || '-'}</td>
+                            )}
+                            {parsedResult.headers.includes('course2') && (
+                              <td className="py-2.5 px-2 font-mono text-amber-600 dark:text-amber-400 font-semibold">{row.course2 || '-'}</td>
+                            )}
+                            {parsedResult.headers.includes('role2') && (
+                              <td className="py-2.5 px-2 font-mono text-blue-600 dark:text-blue-400">{row.role2 || '-'}</td>
+                            )}
+                            {parsedResult.headers.includes('group2') && (
+                              <td className="py-2.5 px-2 font-mono text-purple-600 dark:text-purple-400">{row.group2 || '-'}</td>
+                            )}
                           </tr>
                         );
                       })}

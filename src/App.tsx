@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { Breadcrumb } from './components/Breadcrumb';
 import { ProtocolViewer } from './components/ProtocolViewer';
 import { CsvGenerator } from './components/CsvGenerator';
+import { CsvAuditor } from './components/CsvAuditor';
 import { Troubleshooting } from './components/Troubleshooting';
 import { ProcessSimulator } from './components/ProcessSimulator';
 import { Glossary } from './components/Glossary';
@@ -10,7 +11,7 @@ import { VideoTutorial } from './components/VideoTutorial';
 import { ShieldCheck } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'protocol' | 'csv' | 'troubleshooting' | 'simulator' | 'glossary' | 'video'>('protocol');
+  const [activeTab, setActiveTab] = useState<'protocol' | 'csv' | 'auditor' | 'troubleshooting' | 'simulator' | 'glossary' | 'video'>('protocol');
   const [isDark, setIsDark] = useState<boolean>(() => {
     const saved = localStorage.getItem('esalud_theme');
     if (saved) return saved === 'dark';
@@ -59,6 +60,7 @@ export default function App() {
         {activeTab === 'protocol' && <ProtocolViewer />}
         {activeTab === 'video' && <VideoTutorial />}
         {activeTab === 'csv' && <CsvGenerator />}
+        {activeTab === 'auditor' && <CsvAuditor />}
         {activeTab === 'troubleshooting' && <Troubleshooting />}
         {activeTab === 'simulator' && <ProcessSimulator />}
         {activeTab === 'glossary' && <Glossary />}
