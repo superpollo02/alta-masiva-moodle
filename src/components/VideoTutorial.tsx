@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { VIDEO_TIMESTAMPS } from '../data/protocolData';
 import { VideoTimestamp } from '../types';
 import { Clock, Film, Volume2, Youtube } from 'lucide-react';
+import { HeroHeader } from './HeroHeader';
 
 export const VideoTutorial: React.FC = () => {
-  const [phases, setPhases] = useState<VideoTimestamp[]>(() => {
+  const [phases] = useState<VideoTimestamp[]>(() => {
     const saved = localStorage.getItem('esalud_video_phases');
     return saved ? JSON.parse(saved) : VIDEO_TIMESTAMPS;
   });
@@ -17,19 +18,13 @@ export const VideoTutorial: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl border border-blue-900/50">
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-500/25 text-red-300 border border-red-500/30 mb-4">
-          <Youtube className="w-3.5 h-3.5 inline mr-1.5 text-red-400" />
-          Video Tutorial Oficial en YouTube
-        </span>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3">
-          Video Tutorial Oficial ESalud (Ministerio de Salud de Mendoza)
-        </h2>
-        <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-          Reproduzca el video institucional de YouTube y explore o seleccione cada una de las 5 fases del protocolo de matriculación masiva en Moodle.
-        </p>
-      </div>
+      <HeroHeader
+        badgeText="Video Tutorial Oficial en YouTube"
+        badgeIcon={<Youtube className="w-3.5 h-3.5 inline text-red-400" />}
+        badgeVariant="red"
+        title="Video Tutorial Oficial ESalud (Ministerio de Salud de Mendoza)"
+        description="Reproduzca el video institucional de YouTube y explore o seleccione cada una de las 5 fases del protocolo de matriculación masiva en Moodle."
+      />
 
       {/* Main Grid: YouTube Player (Left) & Synchronized Timeline (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -38,8 +33,9 @@ export const VideoTutorial: React.FC = () => {
           <div className="bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800 relative group">
             <div className="aspect-video relative bg-slate-900 flex items-center justify-center">
               <iframe
+                key={activeTimestamp.id}
                 className="w-full h-full"
-                src="https://www.youtube.com/embed/JcJcKJiUqQg?enablejsapi=1"
+                src={`https://www.youtube.com/embed/JcJcKJiUqQg?enablejsapi=1&start=${activeTimestamp.seconds}`}
                 title="Protocolo de Matriculación Moodle - ESalud Mendoza"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -85,7 +81,7 @@ export const VideoTutorial: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Synchronized Timeline & 5 Phases State-managed List Items */}
+        {/* Right: Synchronized Timeline */}
         <div className="lg:col-span-5 space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">

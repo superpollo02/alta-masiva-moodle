@@ -1,45 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TROUBLESHOOTING_ITEMS } from '../data/protocolData';
-import { AlertTriangle, HelpCircle, CheckCircle2, Search, ArrowRight, ShieldAlert, Info } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ShieldAlert } from 'lucide-react';
+import { HeroHeader } from './HeroHeader';
+import { FilterSearchBar } from './FilterSearchBar';
 
 export const Troubleshooting: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredItems = TROUBLESHOOTING_ITEMS.filter(item =>
-    item.problem.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.cause.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.solution.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Memorización de filtrado para evitar re-cálculos en re-render
+  const filteredItems = useMemo(() => {
+    if (!searchTerm.trim()) return TROUBLESHOOTING_ITEMS;
+    const term = searchTerm.toLowerCase();
+    return TROUBLESHOOTING_ITEMS.filter(item =>
+      item.problem.toLowerCase().includes(term) ||
+      item.cause.toLowerCase().includes(term) ||
+      item.solution.some(s => s.toLowerCase().includes(term))
+    );
+  }, [searchTerm]);
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl border border-blue-900/50">
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 mb-4">
-          Guía de Resolución de Incidencias
-        </span>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3">
-          Solución a Errores Comunes en Matriculación Moodle
-        </h2>
-        <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-          Consulta basada en el análisis de excepciones del videotutorial (direcciones de correo duplicadas, usuarios preexistentes y verificación cruzada en participantes).
-        </p>
-      </div>
+      <HeroHeader
+        badgeText="Guía de Resolución de Incidencias"
+        badgeVariant="amber"
+        title="Solución a Errores Comunes en Matriculación Moodle"
+        description="Consulta basada en el análisis de excepciones del videotutorial (direcciones de correo duplicadas, usuarios preexistentes y verificación cruzada en participantes)."
+      />
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar error, causa o solución..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm shadow-sm"
-          />
-        </div>
-        <div className="text-sm text-slate-500">
-          Mostrando <span className="font-semibold text-slate-900 dark:text-white">{filteredItems.length}</span> casos documentados
-        </div>
-      </div>
+      <FilterSearchBar
+        placeholder="Buscar error, causa o solución..."
+        value={searchTerm}
+        onChange={setSearchTerm}
+        count={filteredItems.length}
+        countLabel="casos documentados"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredItems.map(item => {
@@ -88,8 +82,8 @@ export const Troubleshooting: React.FC = () => {
               </div>
 
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-                <span>Protocolo ESalud Mendoza</span>
-                <span className="font-medium text-blue-600 dark:text-blue-400">Verificación Manual en Moodle</span>
+                <span>Severidad: <strong className="capitalize">{item.severity}</strong></span>
+                <span className="text-blue-500 font-medium">Protocolo ESalud</span>
               </div>
             </div>
           );

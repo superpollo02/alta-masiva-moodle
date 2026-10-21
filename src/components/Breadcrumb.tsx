@@ -9,8 +9,7 @@ interface BreadcrumbProps {
 const TAB_NAMES: Record<string, string> = {
   protocol: 'Protocolo Instructivo',
   video: 'Video Tutorial Sincronizado',
-  csv: 'Validador & Generador CSV',
-  auditor: 'Auditor de CSV & Lotes',
+  csv: 'Validador & Lotes Moodle',
   troubleshooting: 'Solución de Errores',
   simulator: 'Simulador Interactivo',
   glossary: 'Glosario'

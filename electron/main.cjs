@@ -10,8 +10,10 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true
     },
     autoHideMenuBar: true,
     title: "Protocolo ESalud - Matriculación Moodle",
@@ -28,13 +30,13 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Abrir enlaces web externos en el navegador predeterminado del sistema
+  // Abrir enlaces web externos estrictamente en el navegador predeterminado del sistema
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http:') || url.startsWith('https:')) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
-    return { action: 'allow' };
+    return { action: 'deny' };
   });
 }
 

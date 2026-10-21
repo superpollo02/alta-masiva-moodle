@@ -30,7 +30,7 @@ export const PROTOCOL_STEPS: ProtocolStep[] = [
       'Pegar los datos copiados de Google Sheets en una planilla de trabajo limpia (sin formato para evitar rastros de celdas).',
       'Configurar las cabeceras obligatorias requeridas por Moodle: username, password, firstname, lastname, email, course1.',
       'Definir los valores estándar para todos los usuarios: Password inicial (ej. Capacitaciones2020*) y Course1 (ej. REDLAB2026).',
-      'Revisar y ordenar la tabla de punta a punta para verificar que no existan celdas vacías o desalineadas entre DNI, Apellido y Nombre.',
+      'Revisar y ordenar la tabla de punta a punta para verificar que no existan celdas vacías o desalineadas entre DNI, Apellido, Nombre y Correo electrónico (email).',
       'Guardar el archivo seleccionando el formato CSV (delimitado por comas o punto y coma según configuración regional).'
     ],
     tips: [
@@ -144,11 +144,6 @@ export const TROUBLESHOOTING_ITEMS: TroubleshootingItem[] = [
     severity: 'warning'
   }
 ];
-
-export const DEFAULT_SAMPLE_CSV = `username;password;firstname;lastname;email;course1
-24500901;Capacitaciones2020*;Ana Carolina;García;anacarolina.mendoza@gmail.com;REDLAB2026
-25468902;Capacitaciones2020*;Pablo;Pérez;pabloperez.lab@yahoo.com.ar;REDLAB2026
-26789103;Capacitaciones2020*;María Laura;López;marialauralopez@gmail.com;REDLAB2026`;
 
 export const VIDEO_TIMESTAMPS: VideoTimestamp[] = [
   {

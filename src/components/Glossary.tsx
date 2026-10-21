@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { BookOpen, Search, ShieldAlert, Cpu, Database, CheckCircle2 } from 'lucide-react';
+import { HeroHeader } from './HeroHeader';
+import { FilterSearchBar } from './FilterSearchBar';
 
 interface GlossaryTerm {
   id: string;
@@ -102,138 +104,102 @@ const glossaryData: GlossaryTerm[] = [
 
 export const Glossary: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const categories = ['Todos', 'Moodle & Aulas', 'Datos & CSV', 'Seguridad & Roles', 'Administración'];
+  const categories = useMemo(() => {
+    return ['all', 'Moodle & Aulas', 'Datos & CSV', 'Seguridad & Roles', 'Administración'];
+  }, []);
 
-  // Memoize filtered terms to avoid recalculating on unrelated renders
   const filteredTerms = useMemo(() => {
-    return glossaryData.filter((item) => {
-      const matchesSearch =
+    return glossaryData.filter(item => {
+      const matchesSearch = 
         item.term.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.definition.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.protocolContext.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'Todos' || item.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesCat = selectedCategory === 'all' || item.category === selectedCategory;
+      return matchesSearch && matchesCat;
     });
   }, [searchTerm, selectedCategory]);
 
   return (
-    <div className="space-y-8 pb-16 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-2xl p-6 sm:p-8 text-white shadow-xl border border-blue-900/30">
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold mb-3 border border-blue-500/30">
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Referencia Técnica</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Glosario de Términos Moodle & ESalud</h2>
-          <p className="text-slate-300 mt-2 text-sm sm:text-base leading-relaxed">
-            Diccionario oficial de conceptos técnicos, parámetros de importación CSV y terminología administrativa utilizada en el protocolo de matriculación masiva del Ministerio de Salud de Mendoza.
-          </p>
-        </div>
+    <div className="space-y-8 pb-12">
+      <HeroHeader
+        badgeText="Glosario Institucional"
+        badgeVariant="blue"
+        title="Glosario de Términos Clave en Moodle y Datos"
+        description="Conceptos técnicos y normativos esenciales para la matriculación de usuarios, codificaciones y arquitectura del Campus Virtual ESalud."
+      />
 
-        {/* Search & Filters */}
-        <div className="mt-6 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar término, concepto o contexto..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm shadow-inner"
-            />
-          </div>
-        </div>
+      <div className="space-y-4">
+        <FilterSearchBar
+          placeholder="Buscar concepto, sigla o definición..."
+          value={searchTerm}
+          onChange={setSearchTerm}
+          count={filteredTerms.length}
+          countLabel="términos"
+        />
 
-        {/* Category Pills */}
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="flex flex-wrap items-center gap-2">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 selectedCategory === cat
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
-              {cat}
+              {cat === 'all' ? 'Todas las categorías' : cat}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Results Count */}
-      <div className="flex items-center justify-between px-1">
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-          Mostrando <span className="font-bold text-slate-900 dark:text-white">{filteredTerms.length}</span> términos técnicos
-        </p>
-        {searchTerm && (
-          <button
-            onClick={() => setSearchTerm('')}
-            className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
-          >
-            Limpiar búsqueda
-          </button>
-        )}
-      </div>
-
-      {/* Terms Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredTerms.map((item) => {
-          const Icon = iconMap[item.icon];
+        {filteredTerms.map((term) => {
+          const IconComponent = iconMap[term.icon] || BookOpen;
+
           return (
             <div
-              key={item.id}
-              className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all flex flex-col justify-between group"
+              key={term.id}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
             >
-              <div>
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900/40 group-hover:scale-105 transition-transform">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {item.term}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {term.category}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                      {term.term}
                     </h3>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
-                    {item.category}
-                  </span>
                 </div>
 
-                <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">
-                  {item.definition}
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {term.definition}
                 </p>
+
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+                  <strong className="text-blue-600 dark:text-blue-400 block mb-1">Contexto en Protocolo:</strong>
+                  {term.protocolContext}
+                </div>
               </div>
 
-              <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 -mx-6 -mb-6 p-4 rounded-b-2xl">
-                <div className="flex items-start space-x-2 text-xs text-slate-600 dark:text-slate-400">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-slate-900 dark:text-slate-200">En el protocolo ESalud: </span>
-                    <span>{item.protocolContext}</span>
-                  </div>
-                </div>
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Estándar ESalud
+                </span>
+                <span>ID: {term.id}</span>
               </div>
             </div>
           );
         })}
       </div>
-
-      {filteredTerms.length === 0 && (
-        <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 text-slate-400">
-            <Search className="w-8 h-8" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">No se encontraron términos</h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 max-w-sm mx-auto">
-            Intente buscar con otros términos o seleccione la categoría "Todos".
-          </p>
-        </div>
-      )}
     </div>
   );
 };

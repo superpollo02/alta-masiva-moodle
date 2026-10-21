@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Breadcrumb } from './components/Breadcrumb';
 import { ProtocolViewer } from './components/ProtocolViewer';
-import { CsvGenerator } from './components/CsvGenerator';
-import { CsvAuditor } from './components/CsvAuditor';
+import { UnifiedCsvProcessor } from './components/UnifiedCsvProcessor';
 import { Troubleshooting } from './components/Troubleshooting';
 import { ProcessSimulator } from './components/ProcessSimulator';
 import { Glossary } from './components/Glossary';
@@ -11,7 +10,7 @@ import { VideoTutorial } from './components/VideoTutorial';
 import { ShieldCheck } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'protocol' | 'csv' | 'auditor' | 'troubleshooting' | 'simulator' | 'glossary' | 'video'>('protocol');
+  const [activeTab, setActiveTab] = useState<'protocol' | 'csv' | 'troubleshooting' | 'simulator' | 'glossary' | 'video'>('csv');
   const [isDark, setIsDark] = useState<boolean>(() => {
     const saved = localStorage.getItem('esalud_theme');
     if (saved) return saved === 'dark';
@@ -21,7 +20,7 @@ export default function App() {
   // Track visited protocol steps/tabs in session storage
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => {
     const saved = sessionStorage.getItem('esalud_visited_tabs');
-    return saved ? new Set(JSON.parse(saved)) : new Set(['protocol']);
+    return saved ? new Set(JSON.parse(saved)) : new Set(['protocol', 'csv']);
   });
 
   useEffect(() => {
@@ -59,8 +58,7 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-12">
         {activeTab === 'protocol' && <ProtocolViewer />}
         {activeTab === 'video' && <VideoTutorial />}
-        {activeTab === 'csv' && <CsvGenerator />}
-        {activeTab === 'auditor' && <CsvAuditor />}
+        {activeTab === 'csv' && <UnifiedCsvProcessor />}
         {activeTab === 'troubleshooting' && <Troubleshooting />}
         {activeTab === 'simulator' && <ProcessSimulator />}
         {activeTab === 'glossary' && <Glossary />}
